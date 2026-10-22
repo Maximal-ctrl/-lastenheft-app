@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lastenheft-Editor</title>
+  <meta name="theme-color" content="#2b579a">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <script>
+    // Als installierbare iPad-App nur, wenn über HTTPS geladen (z. B. GitHub Pages) –
+    // im PC-/WLAN-Betrieb (http) bleibt alles wie bisher.
+    if (location.protocol === 'https:') {
+      document.write('<link rel="manifest" href="manifest.webmanifest">' +
+        '<meta name="apple-mobile-web-app-capable" content="yes">' +
+        '<meta name="mobile-web-app-capable" content="yes">' +
+        '<meta name="apple-mobile-web-app-status-bar-style" content="default">' +
+        '<meta name="apple-mobile-web-app-title" content="Lastenheft">');
+    }
+  </script>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <!-- Titelleiste mit Schnellzugriff -->
+  <header class="titlebar">
+    <div class="qat">
+      <span class="app-logo">LH</span>
+      <button class="qbtn" data-cmd="save" title="Speichern (Strg+S)"><i data-i="save"></i></button>
+      <button class="qbtn" data-cmd="undo" title="Rückgängig (Strg+Z)"><i data-i="undo"></i></button>
+      <button class="qbtn" data-cmd="redo" title="Wiederholen (Strg+Y)"><i data-i="redo"></i></button>
+    </div>
+    <div class="mode-switch" role="tablist" aria-label="Dokumentart">
+      <button role="tab" data-cmd="mode" data-arg="LH" id="modeLH" title="Lastenheft (Anforderungen des Auftraggebers)">Lastenheft</button>
+      <button role="tab" data-cmd="mode" data-arg="PH" id="modePH" title="Pflichtenheft (Umsetzung durch den Auftragnehmer)">Pflichtenheft</button>
+    </div>
+    <div class="title-center"><span id="docName">Unbenannt</span><span class="dirty" id="dirtyMark"></span> – <span id="appName">Lastenheft-Editor</span></div>
+    <button class="server-state" id="serverState" data-cmd="backstage" data-arg="tablet" title="">Offline-Modus</button>
+  </header>
+
+  <!-- Registerkarten -->
+  <nav class="tabs">
+    <button class="tab file-tab" data-cmd="backstage" data-arg="new">Datei</button>
+    <button class="tab active" data-tab="start">Start</button>
+    <button class="tab" data-tab="insert">Einfügen</button>
+    <button class="tab" data-tab="templates">Vorlagen</button>
+    <button class="tab" data-tab="refs">Referenzen</button>
+    <button class="tab" data-tab="view">Ansicht</button>
+    <button class="tab ctx hidden" data-tab="tabletools" id="tabTable">Tabellenlayout</button>
+    <button class="tab ctx hidden" data-tab="imagetools" id="tabImage">Bildformat</button>
+    <div class="tabs-right">
+      <button class="tbtn" data-cmd="save" title="Speichern (Strg+S)"><i data-i="save"></i><span class="lbl">Speichern</span></button>
+      <button class="tbtn" data-cmd="pdf" title="Als PDF speichern / anzeigen (Strg+P)"><i data-i="pdf"></i><span class="lbl">PDF</span></button>
+      <button class="tbtn primary" data-cmd="wordOpen" title="Als .docx erstellen und in Word öffnen"><i data-i="word"></i><span class="lbl"><span data-remote="0">In Word öffnen</span><span data-remote="1">Word-Datei</span></span></button>
+    </div>
+  </nav>
+
+  <!-- Menüband -->
+  <div class="ribbon">
+    <!-- START -->
+    <section class="panel active" data-panel="start">
+      <div class="group">
+        <div class="group-body">
+          <div class="rows">
+            <button class="rb" data-cmd="undo" title="Rückgängig (Strg+Z)"><i data-i="undo"></i></button>
+            <button class="rb" data-cmd="redo" title="Wiederholen (Strg+Y)"><i data-i="redo"></i></button>
+          </div>
+          <div class="rows">
+            <button class="rb" data-cmd="cut" title="Ausschneiden (Strg+X)"><i data-i="cut"></i></button>
+            <button class="rb" data-cmd="copy" title="Kopieren (Strg+C)"><i data-i="copy"></i></button>
+          </div>
+        </div>
+        <div class="group-label">Zwischenablage</div>
+      </div>
+
+      <div class="group">
+        <div class="group-body">
+          <div class="rows">
+            <div class="row">
+              <select class="rsel" id="fontFamily" title="Schriftart">
+                <option>Calibri</option><option>Arial</option><option>Cambria</option><option>Times New Roman</option>
+                <option>Segoe UI</option><option>Verdana</option><option>Consolas</option><option>Courier New</option>
+              </select>
+              <select class="rsel" id="fontSize" title="Schriftgrad">
+                <option>8</option><option>9</option><option>10</option><option>10,5</option><option selected>11</option><option>12</option>
+                <option>14</option><option>16</option><option>18</option><option>20</option><option>24</option><option>28</option><option>36</option><option>48</option>
+              </select>
+              <button class="rb" data-cmd="grow" title="Schrift vergrößern"><i data-i="grow"></i></button>
+              <button class="rb" data-cmd="shrink" title="Schrift verkleinern"><i data-i="shrink"></i></button>
+            </div>
+            <div class="row">
+              <button class="rb" data-cmd="bold" data-state="bold" title="Fett (Strg+B)"><span class="txt" style="font-weight:700">F</span></button>
+              <button class="rb" data-cmd="italic" data-state="italic" title="Kursiv (Strg+I)"><span class="txt" style="font-style:italic">K</span></button>
+              <button class="rb" data-cmd="underline" data-state="underline" title="Unterstrichen (Strg+U)"><span class="txt" style="text-decoration:underline">U</span></button>
+              <button class="rb" data-cmd="strike" data-state="strikeThrough" title="Durchgestrichen"><span class="txt" style="text-decoration:line-through">ab</span></button>
+              <button class="rb" data-cmd="sub" data-state="subscript" title="Tiefgestellt"><span class="txt">x<sub style="font-size:9px">2</sub></span></button>
+              <button class="rb" data-cmd="sup" data-state="superscript" title="Hochgestellt"><span class="txt">x<sup style="font-size:9px">2</sup></span></button>
+              <span class="sep"></span>
+              <label class="rb color-btn" title="Schriftfarbe"><span class="txt" style="font-weight:700">A</span><span class="bar" id="fcBar" style="background:#c00000"></span><input type="color" id="foreColor" value="#c00000"></label>
+              <label class="rb color-btn" title="Texthervorhebungsfarbe"><span class="txt" style="font-size:13px">ab</span><span class="bar" id="hcBar" style="background:#ffff00"></span><input type="color" id="hiliteColor" value="#ffff00"></label>
+              <button class="rb" data-cmd="clear" title="Formatierung löschen"><i data-i="clear"></i></button>
+            </div>
+          </div>
+        </div>
+        <div class="group-label">Schriftart</div>
+      </div>
+
+      <div class="group">
+        <div class="group-body">
+          <div class="rows">
+            <div class="row">
+              <button class="rb" data-cmd="ul" data-state="insertUnorderedList" title="Aufzählungszeichen"><i data-i="ul"></i></button>
+              <button class="rb" data-cmd="ol" data-state="insertOrderedList" title="Nummerierung"><i data-i="ol"></i></button>
+              <span class="sep"></span>
+              <button class="rb" data-cmd="outdent" title="Einzug verkleinern"><i data-i="outdent"></i></button>
+              <button class="rb" data-cmd="indent" title="Einzug vergrößern"><i data-i="indent"></i></button>
+            </div>
+            <div class="row">
+              <button class="rb" data-cmd="left" data-state="justifyLeft" title="Linksbündig (Strg+L)"><i data-i="left"></i></button>
+              <button class="rb" data-cmd="center" data-state="justifyCenter" title="Zentriert (Strg+E)"><i data-i="center"></i></button>
+              <button class="rb" data-cmd="right" data-state="justifyRight" title="Rechtsbündig (Strg+R)"><i data-i="right"></i></button>
+              <button class="rb" data-cmd="justify" data-state="justifyFull" title="Blocksatz (Strg+J)"><i data-i="justify"></i></button>
+            </div>
+          </div>
+        </div>
+        <div class="group-label">Absatz</div>
+      </div>
+
+      <div class="group">
+        <div class="group-body">
+          <div class="styles-gallery">
+            <button class="style-tile" data-cmd="block" data-arg="p"><span class="sample" style="font-size:12px">AaBbCc</span><span class="name">Standard</span></button>
+            <button class="style-tile" data-cmd="block" data-arg="h1"><span class="sample" style="font-size:15px;font-weight:700;color:#1f3864">AaBb</span><span class="name">Überschrift 1</span></button>
+            <button class="style-tile" data-cmd="block" data-arg="h2"><span class="sample" style="font-size:13px;font-weight:700;color:#2f5496">AaBbC</span><span class="name">Überschrift 2</span></button>
+            <button class="style-tile" data-cmd="block" data-arg="h3"><span class="sample" style="font-size:12px;font-weight:700;color:#2f5496">AaBbCc</span><span class="name">Überschrift 3</span></button>
+            <button class="style-tile" data-cmd="block" data-arg="title"><span class="sample" style="font-size:18px;font-weight:700;color:#1f3864">Aa</span><span class="name">Titel</span></button>
+            <button class="style-tile" data-cmd="block" data-arg="note"><span class="sample" style="font-size:12px;border-left:3px solid #2f5496;padding-left:3px;background:#eef3fb">Hinweis</span><span class="name">Hinweis</span></button>
+          </div>
+        </div>
+        <div class="group-label">Formatvorlagen</div>
+      </div>
+
+      <div class="group">
+        <div class="group-body">
+          <button class="rb lg" data-cmd="save" title="Speichern (Strg+S)"><i data-i="save"></i>Speichern</button>
+          <button class="rb lg" data-cmd="pdf" title="Als PDF speichern / anzeigen"><i data-i="pdf"></i>Als PDF</button>
+          <button class="rb lg" data-cmd="wordOpen" title="Word-Datei (.docx) erstellen"><i data-i="word"></i><span data-remote="0">In Word öffnen</span><span data-remote="1">Word-Datei</span></button>
+        </div>
+        <div class="group-label">Datei</div>
+      </div>
+    </section>
+
+    <!-- EINFÜGEN -->
+    <section class="panel" data-panel="insert">
+      <div class="group">
+        <div class="group-body">
+          <button class="rb lg" data-cmd="snippet" data-arg="cover"><i data-i="cover"></i>Deckblatt</button>
+          <button class="rb lg" data-cmd="pagebreak" title="Seitenumbruch (Strg+Enter)"><i data-i="pagebreak"></i>Seiten&shy;umbruch</button>
+        </div>
+        <div class="group-label">Seiten</div>
+      </div>
+      <div class="group">
+        <div class="group-body">
+          <button class="rb lg" data-cmd="tablePicker" title="Tabelle einfügen"><i data-i="table"></i>Tabelle <span class="caret">▼</span></button>
+          <button class="rb lg" data-cmd="addReq" title="Anforderung bzw. Zeile der Umsetzungsmatrix einfügen"><i data-i="reqAdd"></i><span data-mode="LH">Anforderung</span><span data-mode="PH">Umsetzungs&shy;zeile</span></button>
+          <button class="rb lg" data-cmd="snippet" data-arg="param" title="Kenndatentabelle (Min/Typ/Max)"><i data-i="param"></i>Kenndaten</button>
+        </div>
+        <div class="group-label">Tabellen</div>
+      </div>
+      <div class="group">
+        <div class="group-body">
+          <button class="rb lg" data-cmd="image" title="Bild (z. B. Blockschaltbild) einfügen"><i data-i="image"></i>Bild</button>
+        </div>
+        <div class="group-label">Illustrationen</div>
+      </div>
+      <div class="group">
+        <div class="group-body">
+          <button class="rb lg" data-cmd="link" title="Link (Strg+K)"><i data-i="link"></i>Link</button>
+        </div>
+        <div class="group-label">Links</div>
+      </div>
+      <div class="group">
+        <div class="group-body">
+          <div class="rows">
+            <button class="rb" data-cmd="date"><i data-i="date"></i>Datum</button>
+            <button class="rb" data-cmd="hr"><i data-i="hr"></i>Linie</button>
+            <button class="rb" data-cmd="placeholder"><i data-i="placeholder"></i>Platzhalter</button>
+          </div>
+          <div class="rows">
+            <button class="rb" data-cmd="snippet" data-arg="note"><i data-i="note"></i>Hinweisbox</button>
+            <button class="rb" data-cmd="toc"><i data-i="toc"></i>Verzeichnis</button>
+          </div>
+        </div>
+        <div class="group-label">Text</div>
+      </div>
+      <div class="group">
+        <div class="group-body">
+          <button class="rb lg" data-cmd="symbolPicker" title="Symbol einfügen"><i data-i="symbol"></i>Symbol <span class="caret">▼</span></button>
+        </div>
+        <div class="group-label">Symbole</div>
+      </div>
+    </section>
+
+    <!-- VORLAGEN -->
+    <section class="panel" data-panel="templates">
+      <div class="group">
+        <div class="group-body" id="tplButtons"></div>
+        <div class="group-label"><span id="tplGroupLabel">Lastenheft</span>-Vorlagen (ersetzt das Dokument)</div>
+      </div>
+      <div class="group">
+        <div class="group-body" id="snippetButtons"></div>
+        <div class="group-label">Bausteine (an Cursorposition einfügen)</div>
+      </div>
+    </section>
+
+    <!-- REFERENZEN -->
+    <section class="panel" data-panel="refs">
+      <div class="group">
+        <div class="group-body">
+          <button class="rb lg" data-cmd="toc"><i data-i="toc"></i>Inhalts&shy;verzeichnis</button>
+        </div>
+        <div class="group-label">Inhaltsverzeichnis</div>
+      </div>
+      <div class="group">
+        <div class="group-body">
+          <button class="rb lg" data-cmd="renumber" title="Kapitelnummern 1, 1.1, 1.1.1 neu vergeben"><i data-i="numbering"></i>Überschriften nummerieren</button>
+        </div>
+        <div class="group-label">Gliederung</div>
+      </div>
+      <div class="group" data-mode="PH">
+        <div class="group-body">
+          <button class="rb lg" data-cmd="importLH" title="Alle Anforderungen eines Lastenhefts in die Umsetzungsmatrix übernehmen"><i data-i="importReq"></i>Aus Lastenheft übernehmen</button>
+        </div>
+        <div class="group-label">Lastenheft</div>
+      </div>
+      <div class="group">
+        <div class="group-body">
+          <button class="rb lg" data-cmd="addReq"><i data-i="reqAdd"></i><span data-mode="LH">Neue Anforderung</span><span data-mode="PH">Neue Zeile</span></button>
+          <button class="rb lg" data-cmd="checkReqs"><i data-i="req"></i><span data-mode="LH">Anforderungen prüfen</span><span data-mode="PH">Erfüllung prüfen</span></button>
+        </div>
+        <div class="group-label"><span data-mode="LH">Anforderungen</span><span data-mode="PH">Umsetzungsmatrix</span></div>
+      </div>
+      <div class="group">
+        <div class="group-body">
+          <button class="rb lg" data-cmd="updateAll" title="Felder, Nummerierung und Verzeichnis aktualisieren (F9)"><i data-i="update"></i>Alles aktualisieren</button>
+        </div>
+        <div class="group-label">Aktualisieren (F9)</div>
+      </div>
+    </section>
+
+    <!-- ANSICHT -->
+    <section class="panel" data-panel="view">
+      <div class="group">
+        <div class="group-body">
+          <button class="rb lg" data-cmd="nav" id="btnNav"><i data-i="nav"></i>Navigations&shy;bereich</button>
+          <button class="rb lg" data-cmd="markPh" id="btnPh"><i data-i="placeholder"></i>Platzhalter markieren</button>
+        </div>
+        <div class="group-label">Anzeigen</div>
+      </div>
+      <div class="group">
+        <div class="group-body">
+          <button class="rb lg" data-cmd="zoom" data-arg="100"><i data-i="zoom"></i>100 %</button>
+          <button class="rb lg" data-cmd="zoomFit"><i data-i="pageWidth"></i>Seiten&shy;breite</button>
+          <div class="rows">
+            <button class="rb" data-cmd="zoomIn"><i data-i="zoomIn"></i>Vergrößern</button>
+            <button class="rb" data-cmd="zoomOut"><i data-i="zoomOut"></i>Verkleinern</button>
+          </div>
+        </div>
+        <div class="group-label">Zoom</div>
+      </div>
+    </section>
+
+    <!-- TABELLENLAYOUT (kontextabhängig) -->
+    <section class="panel" data-panel="tabletools">
+      <div class="group">
+        <div class="group-body">
+          <button class="rb lg" data-cmd="rowAbove"><i data-i="rowAbove"></i>Zeile oberhalb</button>
+          <button class="rb lg" data-cmd="rowBelow"><i data-i="rowBelow"></i>Zeile unterhalb</button>
+          <button class="rb lg" data-cmd="colLeft"><i data-i="colLeft"></i>Spalte links</button>
+          <button class="rb lg" data-cmd="colRight"><i data-i="colRight"></i>Spalte rechts</button>
+        </div>
+        <div class="group-label">Zeilen und Spalten</div>
+      </div>
+      <div class="group">
+        <div class="group-body">
+          <button class="rb lg" data-cmd="delRow"><i data-i="delRow"></i>Zeile löschen</button>
+          <button class="rb lg" data-cmd="delCol"><i data-i="delCol"></i>Spalte löschen</button>
+          <button class="rb lg" data-cmd="delTable"><i data-i="delTable"></i>Tabelle löschen</button>
+        </div>
+        <div class="group-label">Löschen</div>
+      </div>
+      <div class="group">
+        <div class="group-body">
+          <button class="rb lg" data-cmd="addReq"><i data-i="reqAdd"></i>Neue Anforderung</button>
+        </div>
+        <div class="group-label">Anforderungen</div>
+      </div>
+    </section>
+
+    <!-- BILDFORMAT (kontextabhängig) -->
+    <section class="panel" data-panel="imagetools">
+      <div class="group">
+        <div class="group-body">
+          <button class="rb lg" data-cmd="imgWidth" data-arg="25"><i data-i="width"></i>25 %</button>
+          <button class="rb lg" data-cmd="imgWidth" data-arg="50"><i data-i="width"></i>50 %</button>
+          <button class="rb lg" data-cmd="imgWidth" data-arg="75"><i data-i="width"></i>75 %</button>
+          <button class="rb lg" data-cmd="imgWidth" data-arg="100"><i data-i="width"></i>100 %</button>
+        </div>
+        <div class="group-label">Größe (Seitenbreite)</div>
+      </div>
+      <div class="group">
+        <div class="group-body">
+          <button class="rb lg" data-cmd="imgDelete"><i data-i="trash"></i>Bild löschen</button>
+        </div>
+        <div class="group-label">Bearbeiten</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Arbeitsbereich -->
+  <main class="workspace">
+    <aside class="navpane" id="navpane">
+      <div class="nav-head">Navigation <button data-cmd="nav" title="Schließen">×</button></div>
+      <div class="nav-search"><input id="navSearch" placeholder="Überschriften filtern …"></div>
+      <div class="nav-list" id="navList"></div>
+      <div class="nav-stats" id="navStats"></div>
+    </aside>
+    <div class="canvas" id="canvas">
+      <div class="page" id="page" contenteditable="true" spellcheck="true" lang="de"></div>
+    </div>
+  </main>
+
+  <!-- Statusleiste -->
+  <footer class="statusbar">
+    <span id="stPages">Seite 1 von 1</span>
+    <span id="stWords">0 Wörter</span>
+    <span id="stReqs">0 Anforderungen</span>
+    <span id="stSave"></span>
+    <span class="spacer"></span>
+    <button data-cmd="zoomOut" title="Verkleinern">−</button>
+    <input type="range" id="zoomRange" min="50" max="200" step="10" value="100" title="Zoom">
+    <button data-cmd="zoomIn" title="Vergrößern">+</button>
+    <span id="zoomVal">100 %</span>
+  </footer>
+</div>
+
+<!-- Backstage (Datei) -->
+<div class="backstage hidden" id="backstage">
+  <aside class="bs-nav">
+    <button class="bs-back" data-cmd="closeBackstage" title="Zurück zum Dokument (Esc)"><i data-i="back" data-size="28"></i></button>
+    <button data-bs="new"><i data-i="newdoc"></i>Neu</button>
+    <button data-bs="open"><i data-i="open"></i>Öffnen</button>
+    <button data-bs="info"><i data-i="info"></i>Informationen</button>
+    <button data-bs="tablet"><i data-i="tablet"></i>iPad / Tablet</button>
+    <hr>
+    <button data-cmd="save"><i data-i="save"></i>Speichern</button>
+    <button data-cmd="saveAs"><i data-i="saveAs"></i>Speichern unter</button>
+    <button data-bs="export"><i data-i="download"></i>Exportieren</button>
+    <button data-cmd="pdf"><i data-i="print"></i>Drucken</button>
+  </aside>
+  <div class="bs-content">
+    <section class="bs-page" data-bspage="new">
+      <h1>Neu – <span id="bsNewKind">Lastenheft</span></h1>
+      <div class="tpl-grid" id="tplGrid"></div>
+      <p class="src-note" data-mode="PH">
+        Das <b>Pflichtenheft</b> ist die Antwort des Auftragnehmers auf das Lastenheft: Es beschreibt, <b>wie</b> und <b>womit</b> die Anforderungen umgesetzt werden.
+        Die Gliederungen orientieren sich an <b>VDI 2519</b> und <b>DIN 69901-5</b> sowie an verbreiteten Pflichtenheft-Vorlagen
+        (Bezug auf das Lastenheft, Aufgabenverständnis, Lösungskonzept und Systemarchitektur, Umsetzungsmatrix mit Verweis auf die Anforderungs-ID,
+        Abweichungen, Prüfplan, Termine, Risiken, Freigabe durch den Auftraggeber).<br>
+        <b>Tipp:</b> Nach dem Anlegen über <b>Referenzen → Aus Lastenheft übernehmen</b> alle Anforderungen eines gespeicherten Lastenhefts automatisch in die Umsetzungsmatrix übernehmen.
+      </p>
+      <p class="src-note" data-mode="LH">
+        Die Gliederungen orientieren sich an <b>VDI 2519 Blatt 1/2</b> (Vorgehensweise bei der Erstellung von Lasten- und Pflichtenheften:
+        Einführung, Ist-Zustand, Soll-Zustand, Schnittstellen, Systemtechnik, Inbetriebnahme, Qualität, Projektabwicklung),
+        an der Begriffsdefinition der <b>DIN 69901-5</b> sowie an typischen Kenngrößen aus Elektronik-Spezifikationen
+        (Versorgung, EMV nach EN/IEC 61000, Umwelt nach IEC 60068, Schutzart nach EN 60529, Fertigung nach IPC-A-610).
+        Werte in <span style="color:#7f7f7f">[eckigen Klammern]</span> sind Platzhalter bzw. Beispielwerte – Normenausgaben bitte vor Freigabe auf Aktualität prüfen.
+      </p>
+    </section>
+
+    <section class="bs-page" data-bspage="open">
+      <h1>Öffnen</h1>
+      <div class="bs-actions">
+        <button class="bs-btn primary" data-cmd="openFile"><i data-i="open"></i>Datei öffnen (Computer / iCloud) …</button>
+        <button class="bs-btn" data-cmd="folder" id="btnFolder"><i data-i="folder"></i>Speicherordner im Explorer öffnen</button>
+        <button class="bs-btn" data-cmd="refreshList"><i data-i="update"></i>Aktualisieren</button>
+      </div>
+      <h2>Gespeicherte Lasten- und Pflichtenhefte</h2>
+      <div id="docList"></div>
+    </section>
+
+    <section class="bs-page" data-bspage="info">
+      <h1>Informationen</h1>
+      <div class="info-grid">
+        <div>
+          <h2 style="margin-top:0">Dokumenteigenschaften</h2>
+          <form class="meta-form" id="metaForm" autocomplete="off"></form>
+          <p class="muted" style="margin-top:12px">Die Eigenschaften werden automatisch im Deckblatt, in der Kopf-/Fußzeile (PDF &amp; Word) und als Dateiname verwendet.</p>
+        </div>
+        <div class="stats"><h2 style="margin-top:0">Statistik</h2><div id="docStats"></div></div>
+      </div>
+    </section>
+
+    <section class="bs-page" data-bspage="tablet">
+      <h1>iPad / Tablet</h1>
+      <div id="tabletInfo"></div>
+    </section>
+
+    <section class="bs-page" data-bspage="export">
+      <h1>Exportieren</h1>
+      <div class="export-cards">
+        <button class="bs-card" data-cmd="pdf"><i data-i="pdf"></i><div><b>PDF erstellen</b><span>Öffnet die Druckvorschau – als Drucker „Als PDF speichern“ / „Microsoft Print to PDF“ wählen.</span></div></button>
+        <button class="bs-card" data-cmd="wordOpen"><i data-i="word"></i><div><b><span data-remote="0">In Word öffnen</span><span data-remote="1">Word-Datei</span></b><span data-remote="0">Erstellt eine .docx-Datei im Speicherordner und öffnet sie direkt in Microsoft Word.</span><span data-remote="1">Lädt die .docx-Datei auf dieses Gerät – danach in der Word-App öffnen.</span></div></button>
+        <button class="bs-card" data-cmd="wordDownload"><i data-i="download"></i><div><b>Word-Datei herunterladen</b><span>Lädt das Lastenheft als .docx (Word 2007 und neuer, LibreOffice) herunter.</span></div></button>
+        <button class="bs-card" data-cmd="htmlDownload"><i data-i="html"></i><div><b>HTML-Datei</b><span>Eigenständige Webseite des Lastenhefts, z. B. zum Versand per E-Mail.</span></div></button>
+        <button class="bs-card" data-cmd="jsonDownload"><i data-i="json"></i><div><b>Projektdatei sichern</b><span>.lastenheft.json / .pflichtenheft.json – kann später wieder im Editor geöffnet werden.</span></div></button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- Popups -->
+<div class="popup grid-picker hidden" id="gridPicker">
+  <div class="gp-label" id="gpLabel">Tabelle einfügen</div>
+  <div class="gp" id="gp"></div>
+  <button data-cmd="snippet" data-arg="req">Anforderungstabelle einfügen</button>
+  <button data-cmd="snippet" data-arg="param" style="border-top:0;margin-top:0">Kenndatentabelle (Min/Typ/Max) einfügen</button>
+</div>
+<div class="popup hidden" id="symbolPicker"><div class="symbol-picker" id="symbols"></div></div>
+
+<div class="modal hidden" id="modal"><div class="modal-box"><h2 id="modalTitle"></h2><div class="modal-body" id="modalBody"></div><div class="modal-buttons" id="modalButtons"></div></div></div>
+<div class="toasts" id="toasts"></div>
+<input type="file" id="fileOpen" accept=".json,.html,.htm" class="hidden">
+<input type="file" id="fileLH" accept=".json" class="hidden">
+<input type="file" id="fileImage" accept="image/png,image/jpeg,image/gif" class="hidden">
+<style id="printStyle"></style>
+
+<script src="js/icons.js"></script>
+<script src="js/qr.js"></script>
+<script src="js/templates.js"></script>
+<script src="js/pflichtenheft.js"></script>
+<script src="js/docx.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
